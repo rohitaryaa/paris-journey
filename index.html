@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scroll Animation React</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- UMD Libraries -->
+    <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+
+    <script>
+      // Fake CommonJS environment
+      window.exports = {};
+      window.require = function(module) {
+        if (module === 'react') return window.React;
+        if (module === 'react-dom/client') return window.ReactDOM;
+        if (module === 'motion/react' || module === 'framer-motion') return window.Motion;
+        if (module === 'lucide-react') {
+           return new Proxy({}, {
+             get: function(target, prop) {
+               return function(props) { 
+                 return window.React.createElement('span', { style: { color: 'cyan', fontSize: '10px' } }, '[' + prop + ']'); 
+               }
+             }
+           });
+        }
+        return {};
+      };
+      
+      window.onerror = function(msg, url, lineNo, columnNo, error) {
+          var errLog = document.getElementById('error-log');
+          errLog.style.display = 'block';
+          errLog.innerText += (error ? error.stack : msg) + '\n';
+      };
+    </script>
+
+    <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      body, html { margin: 0; padding: 0; background-color: #000; color: #fff; }
+    </style>
+</head>
+<body>
+    <div id="error-log" style="position: fixed; top: 0; left: 0; background: red; color: white; z-index: 9999; padding: 20px; display: none; font-family: monospace;"></div>
+    <div id="root"></div>
+    
+    <script id="my-tsx" type="text/plain">
+import { useState, useEffect, FormEvent } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { 
+  Shield, 
+  Terminal, 
+  Cpu, 
+  Database, 
+  Layers, 
+  Compass, 
+  Copy, 
+  Check, 
+  RefreshCw, 
+  BookOpen,
+  Sliders,
+  Play,
+  X,
+  TrendingUp,
+  User,
+  Vote,
+  Lock,
+  Award,
+  ArrowUpRight
+} from "lucide-react";
+
+// Types for cryptographic collectibles
+interface Artifact {
+  id: string;
+  name: string;
+  hash: string;
+  rarity: "Common" | "Rare" | "Epic" | "Mythic";
+  epoch: string;
+  category: string;
+  description: string;
+}
+
+// Types for DAO Proposals
+interface Proposal {
+  id: string;
+  title: string;
+  description: string;
+  forVotes: number;
+  againstVotes: number;
+  status: "Active" | "Passed" | "Defeated";
+  voted?: "For" | "Against";
+}
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState<"home" | "vault" | "staking" | "identity">("home");
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [activeModal, setActiveModal] = useState<"connect" | null>(null);
+  
+  // ZK Simulator State
+  const [zkInput, setZkInput] = useState("Obelisk Protocol Activation Key");
+  const [zkProving, setZkProving] = useState(false);
+  const [zkProof, setZkProof] = useState<string | null>(null);
+  const [copiedProof, setCopiedProof] = useState(false);
+
+  // Scroll Animation State
+  const [currentFrameIndex, setCurrentFrameIndex] = useState(1);
+  const frameCount = 295;
+  const currentFrameSrc = (index: number) => 
+    `ezgif-35cc3054d98bccca-jpg/ezgif-frame-${index.toString().padStart(3, '0')}.jpg`;
+
+  // Preload images
+  useEffect(() => {
+    for (let i = 1; i <= frameCount; i++) {
+      const img = new Image();
+      img.src = currentFrameSrc(i);
+    }
+  }, []);
+
+  // Handle scroll for animation
+  useEffect(() => {
+    let animationFrameId: number;
+
+    const handleScroll = () => {
+      const scrollTop = document.documentElement.scrollTop;
+      const maxScrollTop = document.documentElement.scrollHeight - window.innerHeight;
+      
+      const scrollFraction = scrollTop / maxScrollTop;
+      const frameIndex = Math.min(
+        frameCount - 1,
+        Math.floor(scrollFraction * frameCount)
+      );
+
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      
+      animationFrameId = requestAnimationFrame(() => {
+        setCurrentFrameIndex(frameIndex + 1);
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Tech Specs Interactive Parameters
+  const [nodeCount, setNodeCount] = useState(1420);
+  const [proverMultiplier, setProverMultiplier] = useState(2);
+  const [gasLimit, setGasLimit] = useState(21000);
+
+  // Lore Archive terminal state
+  const [terminalInput, setTerminalInput] = useState("");
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([
+    "System loaded. Type 'help' to see active archive directives.",
+    "Decentralized Oracle status: SYNCHRONIZED"
+  ]);
+
+  // Staking State
+  const [stakeAmount, setStakeAmount] = useState<number>(100);
+  const [lockDuration, setLockDuration] = useState<number>(90); // in days
+  const [hasStaked, setHasStaked] = useState(false);
+  const [activeStakes, setActiveStakes] = useState<Array<{ amount: number, apr: number, duration: number, date: string }>>([]);
+
+  // Governance State
+  const [proposals, setProposals] = useState<Proposal[]>([
+    {
+      id: "OBGP-12",
+      title: "Integrate Recursive ZK Rollups",
+      description: "Amends core storage consensus rules for 4x block verification compression.",
+      forVotes: 14200,
+      againstVotes: 1210,
+      status: "Active"
+    },
+    {
+      id: "OBGP-13",
+      title: "Adjust Target Block Gas Limit",
+      description: "Proposes tuning network baseline target gas boundaries dynamically based on node load.",
+      forVotes: 28900,
+      againstVotes: 8550,
+      status: "Active"
+    },
+    {
+      id: "OBGP-14",
+      title: "Deploy Zero-Knowledge Identity Bridges",
+      description: "Establishes unified cross-chain identity claim passports for off-chain parameters.",
+      forVotes: 41200,
+      againstVotes: 2300,
+      status: "Passed"
+    }
+  ]);
+
+  // Handle simulated wallet connection
+  const connectWallet = (provider: string) => {
+    setWalletConnected(true);
+    setWalletAddress(provider === "metamask" ? "0x7a8e...3f9c" : provider === "walletconnect" ? "0x2d8e...9a4f" : "0x5c1b...7b89");
+    setActiveModal(null);
+  };
+
+  const disconnectWallet = () => {
+    setWalletConnected(false);
+    setWalletAddress(null);
+  };
+
+  // Scroll to section helper
+  const scrollToSection = (tabId: "home" | "vault" | "staking" | "identity") => {
+    setActiveTab(tabId);
+    const element = document.getElementById(`${tabId}-section`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  // Dynamically update active tab based on scroll position
+  useEffect(() => {
+    const sections = ["home", "vault", "staking", "identity"];
+    const observers = sections.map(id => {
+      const el = document.getElementById(`${id}-section`);
+      if (!el) return null;
+      
+      const observer = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting) {
+          setActiveTab(id as any);
+        }
+      }, {
+        rootMargin: "-20% 0px -60% 0px"
+      });
+      observer.observe(el);
+      return { observer, el };
+    });
+
+    return () => {
+      observers.forEach(obs => {
+        if (obs) {
+          obs.observer.unobserve(obs.el);
+        }
+      });
+    };
+  }, []);
+
+  // Generate ZK Proof
+  const generateZKProof = () => {
+    setZkProving(true);
+    setZkProof(null);
+    setTimeout(() => {
+      const generatedHash = Array.from({ length: 32 }, () => 
+        Math.floor(Math.random() * 16).toString(16)
+      ).join("");
+      setZkProof(`snarkjs.groth16.verify(
+  verification_key_obelisk,
+  ["0x${generatedHash.substring(0, 8)}", "0x${generatedHash.substring(8, 16)}"],
+  proof_obelisk_omega_${Math.floor(Math.random() * 900 + 100)}
+) === true;`);
+      setZkProving(false);
+    }, 1200);
+  };
+
+  // Archive terminal actions
+  const handleTerminalSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!terminalInput.trim()) return;
+    
+    const cmd = terminalInput.trim().toLowerCase();
+    let response = "";
+
+    if (cmd === "help") {
+      response = "Commands: 'help', 'status', 'lore', 'genesis', 'destiny', 'clear'";
+    } else if (cmd === "status") {
+      response = `Oracle Core: Active | Nodes: ${nodeCount} | Consensus: ZK-Rollup V2`;
+    } else if (cmd === "lore") {
+      response = "Archive: Human cryptography. Ancestors built ledgers; we build monuments.";
+    } else if (cmd === "genesis") {
+      response = "Epoch I: Genesis. Trust established, standardizing contract state boundaries.";
+    } else if (cmd === "destiny") {
+      response = "Alignment: Decentralization meets destiny as physical parameters become digital signatures.";
+    } else if (cmd === "clear") {
+      setTerminalLogs([]);
+      setTerminalInput("");
+      return;
+    } else {
+      response = `Directive '${cmd}' unrecognized. Standard protocols are online.`;
+    }
+
+    setTerminalLogs(prev => [...prev, `> ${terminalInput}`, response]);
+    setTerminalInput("");
+  };
+
+  // Copy helper
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedProof(true);
+    setTimeout(() => setCopiedProof(false), 2000);
+  };
+
+  // Staking Handlers
+  const calculateApr = (days: number) => {
+    if (days === 30) return 5.2;
+    if (days === 90) return 8.5;
+    return 14.2; // 365 days
+  };
+
+  const handleStake = (e: FormEvent) => {
+    e.preventDefault();
+    if (stakeAmount <= 0) return;
+    const apr = calculateApr(lockDuration);
+    const newStake = {
+      amount: stakeAmount,
+      apr,
+      duration: lockDuration,
+      date: new Date().toLocaleDateString()
+    };
+    setActiveStakes(prev => [newStake, ...prev]);
+    setHasStaked(true);
+    setStakeAmount(100);
+    setTimeout(() => setHasStaked(false), 3000);
+  };
+
+  // Vote Handler
+  const handleVote = (proposalId: string, direction: "For" | "Against") => {
+    setProposals(prev => prev.map(p => {
+      if (p.id === proposalId) {
+        if (p.voted) return p; // prevent double vote
+        return {
+          ...p,
+          forVotes: direction === "For" ? p.forVotes + 100 : p.forVotes,
+          againstVotes: direction === "Against" ? p.againstVotes + 100 : p.againstVotes,
+          voted: direction
+        };
+      }
+      return p;
+    }));
+  };
+
+  // Dynamic values calculated from parameters
+  const calculatedProofTime = (3.2 / proverMultiplier).toFixed(2);
+  const calculatedGasSavings = (92.4 * (nodeCount / 1000)).toFixed(1);
+
+  // Artifact Data
+  const artifacts: Artifact[] = [
+    {
+      id: "art-1",
+      name: "The Obsidian Monolith",
+      hash: "0x7f28...ba90",
+      rarity: "Mythic",
+      epoch: "Epoch I: Genesis",
+      category: "Cryptographic Relic",
+      description: "A dark matrix preserving the original genesis parameter hash of the consensus engine."
+    },
+    {
+      id: "art-2",
+      name: "ZK Sentinel Key",
+      hash: "0x4c22...fd01",
+      rarity: "Epic",
+      epoch: "Epoch II: Dawn",
+      category: "Security Credential",
+      description: "Generates credentials to pass into secure storage layers without identifying real address traits."
+    },
+    {
+      id: "art-3",
+      name: "Ethereum Beacon Anchor",
+      hash: "0x91a0...99ee",
+      rarity: "Rare",
+      epoch: "Epoch III: Alignment",
+      category: "Validator Node",
+      description: "Maintains absolute state synchronicity with the Ethereum Mainnet blocks."
+    },
+    {
+      id: "art-4",
+      name: "Decentralized Oracle Matrix",
+      hash: "0x2d8e...5a1b",
+      rarity: "Common",
+      epoch: "Epoch II: Dawn",
+      category: "Data Stream",
+      description: "Feeds environment variables into contracts securely through ZK validation parameters."
+    }
+  ];
+
+  return (
+    <div className="min-h-screen text-white selection:bg-white selection:text-black font-sans flex flex-col justify-between relative overflow-hidden bg-transparent">
+      
+      {/* Scroll Animation Background */}
+      <img 
+        id="animation-image" 
+        src={currentFrameSrc(currentFrameIndex)} 
+        alt="Background Scroll Animation"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          objectFit: 'cover',
+          zIndex: 1,
+          pointerEvents: 'none'
+        }}
+      />
+
+      {/* Dark Tint Overlay */}
+      <div 
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          zIndex: 2,
+          pointerEvents: 'none'
+        }}
+      />
+
+      {/* Main Page Content Wrapper */}
+      <div style={{ position: 'relative', zIndex: 3, display: 'flex', flexDirection: 'column', minHeight: '100vh', justifyContent: 'space-between' }}>
+        
+        {/* Background Plane Ultra subtle gradient behind center on Home */}
+        <AnimatePresence>
+          {activeTab === "home" && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,140,255,0.08)_0%,rgba(0,0,0,0)_60%)] pointer-events-none z-0"
+            />
+          )}
+        </AnimatePresence>
+
+      {/* Header/Navbar */}
+      <header className="sticky top-0 z-40 w-full bg-black/85 backdrop-blur-md border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          
+          {/* Brand Logo - OBELISK */}
+          <div 
+            onClick={() => scrollToSection("home")}
+            className="flex items-center gap-2 cursor-pointer group"
+          >
+            {/* Symmetrical Geometric Obelisk Logo - Small */}
+            <div className="w-4 h-4 flex items-center justify-center relative">
+              <svg className="w-full h-full text-white transition-transform duration-500 group-hover:rotate-180" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path 
+                  d="M16 2L26 28H6L16 2Z" 
+                  fill="none" 
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinejoin="miter"
+                />
+                <path 
+                  d="M16 8L22 25H10L16 8Z" 
+                  fill="currentColor"
+                />
+              </svg>
+            </div>
+            <span className="text-xs font-bold tracking-[0.3em] text-white uppercase font-sans">
+              Obelisk
+            </span>
+          </div>
+
+          {/* Navigation Menu - Balanced, ultra clean & responsive */}
+          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[9px] font-medium tracking-[0.2em] uppercase text-white/50">
+            <button 
+              onClick={() => scrollToSection("home")}
+              className={`hover:text-white transition-all cursor-pointer ${activeTab === "home" ? "text-cyan-400 font-semibold" : ""}`}
+            >
+              Explore
+            </button>
+            <button 
+              onClick={() => scrollToSection("vault")}
+              className={`hover:text-white transition-all cursor-pointer ${activeTab === "vault" ? "text-cyan-400 font-semibold" : ""}`}
+            >
+              Vault & Tech
+            </button>
+            <button 
+              onClick={() => scrollToSection("staking")}
+              className={`hover:text-white transition-all cursor-pointer ${activeTab === "staking" ? "text-cyan-400 font-semibold" : ""}`}
+            >
+              Stake
+            </button>
+            <button 
+              onClick={() => scrollToSection("identity")}
+              className={`hover:text-white transition-all cursor-pointer ${activeTab === "identity" ? "text-cyan-400 font-semibold" : ""}`}
+            >
+              Identity
+            </button>
+          </nav>
+
+          {/* Connect Button - Small */}
+          <div>
+            <button 
+              id="connect-wallet-btn"
+              onClick={() => {
+                if (walletConnected) {
+                  disconnectWallet();
+                } else {
+                  setActiveModal("connect");
+                }
+              }}
+              className={`border font-semibold text-[8px] tracking-[0.2em] px-4 py-1.5 rounded-full uppercase transition-all duration-300 active:scale-95 cursor-pointer ${
+                walletConnected 
+                  ? "bg-white text-black border-white hover:bg-white/90" 
+                  : "border-white/20 hover:border-white/80 hover:bg-white/5 text-white"
+              }`}
+            >
+              {walletConnected ? walletAddress : "Connect"}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Pages Router Container */}
+      <div className="flex-1 flex flex-col justify-start relative z-10 w-full">
+        
+        {/* TAB 1: HOME PAGE (Ultra-clean modern redesign with NO HAND and beautiful small text) */}
+        <section id="home-section" className="scroll-mt-24 w-full border-b border-white/5 py-24 md:py-40">
+          <motion.main 
+            key="home-page"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="w-full max-w-5xl mx-auto px-6"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-24 items-start w-full">
+              
+              {/* Left Side: Large Header */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full" />
+                  <span className="text-[9px] tracking-[0.3em] text-white/40 uppercase">Protocol Alignment</span>
+                </div>
+                
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-extralight tracking-[0.15em] text-white leading-relaxed uppercase font-sans">
+                  Where <br />
+                  decentralization <br />
+                  meets destiny.
+                </h1>
+              </div>
+
+              {/* Right Side: Description and Access CTA */}
+              <div className="flex flex-col justify-between h-full gap-10 md:pt-8">
+                <div className="space-y-6 max-w-md">
+                  <p className="text-xs font-light text-white/50 leading-loose font-sans tracking-wide">
+                    Secure your Web3 identity, artifacts, and staking yields on-chain. Built for collectors and modern protocol node operators who demand ultimate simplicity.
+                  </p>
+
+                  <button 
+                    id="enter-vault-btn"
+                    onClick={() => scrollToSection("vault")}
+                    className="bg-white text-black font-semibold text-[9px] tracking-widest px-8 py-3 rounded-full hover:bg-neutral-200 transition-all duration-300 cursor-pointer uppercase"
+                  >
+                    Enter The Vault
+                  </button>
+                </div>
+
+                <div className="border-t border-white/5 pt-4 flex items-center justify-between max-w-sm">
+                  <span className="text-[8px] tracking-widest text-white/30 uppercase">Protocol Version</span>
+                  <span className="text-[8px] font-mono text-cyan-400/90 font-semibold tracking-wider">v2.0-ALIGNED</span>
+                </div>
+              </div>
+
+            </div>
+          </motion.main>
+        </section>
+
+        {/* TAB 2: VAULT PAGE */}
+        <section id="vault-section" className="scroll-mt-24 w-full border-b border-white/5 py-24 md:py-40">
+          <motion.main 
+            key="vault-page"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="w-full max-w-5xl mx-auto px-6"
+          >
+            {/* Page Title Header */}
+            <div className="text-center space-y-4 mb-20">
+              <div className="flex items-center justify-center gap-2">
+                <Shield className="w-4 h-4 text-cyan-400" />
+                <span className="text-[9px] tracking-[0.3em] text-cyan-400 uppercase font-semibold">Storage & Consensus Layer</span>
+              </div>
+              <h2 className="text-xl md:text-2xl font-light tracking-[0.2em] uppercase text-white">Cryptographic Vault & Tech</h2>
+              <p className="text-[10px] text-white/40 font-light max-w-md mx-auto leading-relaxed tracking-wider">
+                Generate ZK proofs and configure real-time consensus parameters in a clean, unified matrix environment.
+              </p>
+            </div>
+
+            {/* Main Content Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-24 items-start">
+              
+              {/* Left Column: ZK-SNARK Prover Module */}
+              <div className="space-y-8">
+                <div className="flex items-center gap-2 pb-3 border-b border-white/5">
+                  <Shield className="w-4 h-4 text-white/60" />
+                  <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/80">ZK-SNARK Proof Builder</h3>
+                </div>
+
+                {/* Input Payload */}
+                <div className="space-y-3">
+                  <label className="text-[9px] uppercase tracking-[0.2em] text-white/40 block">Secret Input Key</label>
+                  <input 
+                    type="text" 
+                    value={zkInput}
+                    onChange={(e) => setZkInput(e.target.value)}
+                    placeholder="Enter sensitive transaction payload..."
+                    className="w-full bg-transparent border-b border-white/10 py-3 text-xs text-white placeholder:text-white/20 focus:border-white focus:outline-none transition-all font-mono tracking-wide"
+                  />
+                </div>
+
+                {/* Prover Status Grid */}
+                <div className="grid grid-cols-3 gap-6 py-2 border-y border-white/5">
+                  <div className="text-center py-2">
+                    <span className="text-[8px] uppercase tracking-[0.2em] text-white/30 block">Complexity</span>
+                    <span className="text-xs font-mono text-white/80 mt-1 block">2^20 Matrix</span>
+                  </div>
+                  <div className="text-center py-2">
+                    <span className="text-[8px] uppercase tracking-[0.2em] text-white/30 block">System</span>
+                    <span className="text-xs font-mono text-white/80 mt-1 block">Groth16</span>
+                  </div>
+                  <div className="text-center py-2">
+                    <span className="text-[8px] uppercase tracking-[0.2em] text-white/30 block">Security</span>
+                    <span className="text-xs font-mono text-cyan-400/90 mt-1 block">128 bits</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-center pt-2">
+                  <button 
+                    onClick={generateZKProof}
+                    disabled={zkProving}
+                    className="bg-white text-black font-semibold px-8 py-3 rounded-full hover:bg-neutral-200 active:scale-98 transition-all flex items-center justify-center gap-2 text-[9px] uppercase tracking-[0.2em] cursor-pointer"
+                  >
+                    {zkProving ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Cpu className="w-3.5 h-3.5" />
+                        Build Proof Parameters
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Output Proof Code block */}
+                {zkProof && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-4 pt-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[8px] uppercase tracking-[0.2em] text-green-400 font-semibold flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                        Proof Generation Complete
+                      </span>
+                      <button 
+                        onClick={() => copyToClipboard(zkProof)}
+                        className="text-[8px] tracking-widest text-white/40 hover:text-white flex items-center gap-1.5 border border-white/15 rounded-full px-3 py-1 hover:bg-white/5 transition-all cursor-pointer uppercase"
+                      >
+                        {copiedProof ? (
+                          <>
+                            <Check className="w-3 h-3 text-green-400" />
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            Copy Key
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <pre className="bg-neutral-950 border border-white/5 p-4 rounded-xl text-[9px] font-mono text-white/60 overflow-x-auto leading-relaxed whitespace-pre-wrap max-h-[160px] scrollbar-thin">
+                      {zkProof}
+                    </pre>
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Right Column: Parameters Tuning & Outputs */}
+              <div className="space-y-12">
+                <div className="space-y-8">
+                  <div className="flex items-center gap-2 pb-3 border-b border-white/5">
+                    <Sliders className="w-4 h-4 text-white/60" />
+                    <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/80">ZK Prover Parameters</h3>
+                  </div>
+
+                  {/* Slider 1: Active Validator Nodes */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center text-[9px] uppercase tracking-[0.15em]">
+                      <span className="text-white/40 font-light">Validator Nodes</span>
+                      <span className="text-cyan-400 font-mono font-semibold">{nodeCount} Nodes</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="500" 
+                      max="4000" 
+                      step="50"
+                      value={nodeCount}
+                      onChange={(e) => setNodeCount(Number(e.target.value))}
+                      className="w-full accent-white bg-white/10 h-0.5 rounded appearance-none cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Slider 2: CPU Prover Acceleration */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center text-[9px] uppercase tracking-[0.15em]">
+                      <span className="text-white/40 font-light">Core Acceleration</span>
+                      <span className="text-cyan-400 font-mono font-semibold">{proverMultiplier}x CPU</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="8" 
+                      step="1"
+                      value={proverMultiplier}
+                      onChange={(e) => setProverMultiplier(Number(e.target.value))}
+                      className="w-full accent-white bg-white/10 h-0.5 rounded appearance-none cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Slider 3: Target Block Gas Limit */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center text-[9px] uppercase tracking-[0.15em]">
+                      <span className="text-white/40 font-light">Target Gas Boundary</span>
+                      <span className="text-cyan-400 font-mono font-semibold">{gasLimit} Gwei</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="10000" 
+                      max="100000" 
+                      step="5000"
+                      value={gasLimit}
+                      onChange={(e) => setGasLimit(Number(e.target.value))}
+                      className="w-full accent-white bg-white/10 h-0.5 rounded appearance-none cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-8">
+                  <div className="flex items-center gap-2 pb-3 border-b border-white/5">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/80">Proving Matrix Outputs</span>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center py-2 border-b border-white/5">
+                      <span className="text-[10px] text-white/50 font-light">Avg Proof Latency</span>
+                      <span className="text-lg font-mono font-extralight text-white">{calculatedProofTime}s</span>
+                    </div>
+
+                    <div className="flex justify-between items-center py-2 border-b border-white/5">
+                      <span className="text-[10px] text-white/50 font-light">Gas Savings</span>
+                      <span className="text-lg font-mono font-extralight text-green-400">-{calculatedGasSavings}%</span>
+                    </div>
+
+                    <div className="flex justify-between items-center py-2 border-b border-white/5">
+                      <span className="text-[10px] text-white/50 font-light">Consensus Score</span>
+                      <span className="text-lg font-mono font-extralight text-white/80">99.999%</span>
+                    </div>
+                  </div>
+
+                  <p className="text-[9px] text-white/30 font-light leading-relaxed tracking-wider">
+                    Recursive rollups compress thousands of state transitions into a single verifiable key. Security anchors instantly to Ethereum mainnet blocks.
+                  </p>
+                </div>
+              </div>
+
+            </div>
+          </motion.main>
+        </section>
+
+        {/* TAB 4: STAKING PAGE (1st NEW PAGE: Interactive pool & APR calculator) */}
+        <section id="staking-section" className="scroll-mt-24 w-full border-b border-white/5 py-24 md:py-40">
+          <motion.main 
+            key="staking-page"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="w-full max-w-4xl mx-auto px-6"
+          >
+            {/* Title */}
+            <div className="text-center space-y-4 mb-20">
+              <div className="flex items-center justify-center gap-2">
+                <TrendingUp className="w-4 h-4 text-cyan-400" />
+                <span className="text-[9px] tracking-[0.3em] text-cyan-400 uppercase font-semibold">Yield Consensus</span>
+              </div>
+              <h2 className="text-xl md:text-2xl font-light tracking-[0.2em] uppercase text-white">Obelisk Node Staking</h2>
+              <p className="text-[10px] text-white/40 font-light max-w-md mx-auto leading-relaxed tracking-wider">
+                Lock assets to secure validator nodes and yield real-time reward rates dynamically.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-24 items-start">
+              
+              {/* Stake Form */}
+              <div className="space-y-8">
+                <div className="flex items-center gap-2 pb-3 border-b border-white/5">
+                  <Lock className="w-4 h-4 text-white/60" />
+                  <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/80">Configure Stake Lock</h3>
+                </div>
+
+                <form onSubmit={handleStake} className="space-y-6">
+                  {/* Amount */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-[9px] uppercase tracking-[0.15em]">
+                      <label className="text-white/40 font-light">Staking Volume (OBEL)</label>
+                      <span className="text-cyan-400 font-mono font-semibold">Yield APR: {calculateApr(lockDuration)}%</span>
+                    </div>
+                    <input 
+                      type="number"
+                      min="10"
+                      max="50000"
+                      value={stakeAmount}
+                      onChange={(e) => setStakeAmount(Number(e.target.value))}
+                      className="w-full bg-transparent border-b border-white/10 py-2 text-xs text-white focus:outline-none focus:border-white transition-all font-mono"
+                    />
+                  </div>
+
+                  {/* Lock Duration Options */}
+                  <div className="space-y-3">
+                    <label className="text-[9px] uppercase tracking-[0.15em] text-white/40 font-light block">Lock Duration</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[30, 90, 365].map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setLockDuration(d)}
+                          className={`py-2 px-1 rounded-full text-[9px] font-mono uppercase tracking-widest border transition-all cursor-pointer ${
+                            lockDuration === d 
+                              ? "bg-white text-black border-white" 
+                              : "bg-transparent text-white/50 border-white/10 hover:border-white/30"
+                          }`}
+                        >
+                          {d}d
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Yield Preview info */}
+                  <div className="py-3 border-t border-white/5 text-[9px] space-y-2 font-mono text-white/40">
+                    <div className="flex justify-between">
+                      <span>EST. ANNUALIZED REWARD</span>
+                      <span className="text-white font-semibold">{(stakeAmount * (calculateApr(lockDuration) / 100)).toFixed(2)} OBEL</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>LOCK EXPIRY DATE</span>
+                      <span className="text-cyan-400/90 font-semibold">
+                        {new Date(Date.now() + lockDuration * 24 * 60 * 60 * 1000).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={!walletConnected}
+                    className={`w-full font-semibold py-3 rounded-full text-[9px] uppercase tracking-[0.2em] transition-all cursor-pointer ${
+                      walletConnected 
+                        ? "bg-white text-black hover:bg-neutral-200 active:scale-98" 
+                        : "bg-white/5 text-white/20 border border-white/5 cursor-not-allowed"
+                    }`}
+                  >
+                    {walletConnected ? "Execute Stake Lock" : "Connect Wallet to Stake"}
+                  </button>
+                </form>
+
+                {hasStaked && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-[8px] text-green-400 font-semibold font-mono text-center flex items-center justify-center gap-1.5"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    STAKING TRANSACTION RECORDED
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Stakes List */}
+              <div className="space-y-8">
+                <div className="flex justify-between items-center pb-3 border-b border-white/5">
+                  <div className="flex items-center gap-2">
+                    <Award className="w-4 h-4 text-white/60" />
+                    <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/80">
+                      Validator Positions
+                    </h3>
+                  </div>
+                  <span className="text-[9px] font-mono text-white/40">Total: {activeStakes.reduce((a, b) => a + b.amount, 0)} OBEL</span>
+                </div>
+
+                {activeStakes.length === 0 ? (
+                  <div className="border border-dashed border-white/10 rounded-xl py-12 px-6 text-center flex flex-col items-center justify-center gap-3">
+                    <span className="text-[9px] uppercase text-white/30 tracking-[0.2em]">No Positions Locked</span>
+                    <p className="text-[8px] text-white/20 max-w-xs leading-relaxed tracking-wide">
+                      Connect a wallet to lock OBEL assets. Secured staking forms cryptographic authority vectors.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {activeStakes.map((stake, idx) => (
+                      <div key={idx} className="border border-white/5 bg-neutral-950/20 rounded-xl p-4 flex justify-between items-center">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-xs font-bold font-mono text-white">{stake.amount} OBEL</span>
+                            <span className="text-[6px] font-mono text-green-400 uppercase tracking-widest border border-green-500/20 px-2 py-0.5 rounded-full">
+                              Active
+                            </span>
+                          </div>
+                          <p className="text-[8px] text-white/30 uppercase tracking-wider font-mono">Deposited: {stake.date}</p>
+                        </div>
+
+                        <div className="text-right space-y-1 font-mono">
+                          <span className="text-[10px] text-green-400 font-bold block">+{stake.apr}% APR</span>
+                          <span className="text-[7px] text-white/40 uppercase block">{stake.duration} Days</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Node Pool metrics */}
+                <div className="grid grid-cols-2 gap-8 pt-4 border-t border-white/5">
+                  <div>
+                    <span className="text-[8px] uppercase tracking-[0.15em] text-white/30 block">Global Pool Base</span>
+                    <span className="text-sm font-mono font-light text-white block mt-1">41.2M OBEL</span>
+                  </div>
+                  <div>
+                    <span className="text-[8px] uppercase tracking-[0.15em] text-white/30 block">Daily Pool Mint</span>
+                    <span className="text-sm font-mono font-light text-cyan-400 block mt-1">+12,410 OBEL</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </motion.main>
+        </section>
+
+        {/* TAB 4: IDENTITY PAGE (Last Section - Large Center Space with Single Center Element) */}
+        <section id="identity-section" className="scroll-mt-24 w-full py-32 md:py-56">
+          <motion.main 
+            key="identity-page"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="w-full max-w-xl mx-auto px-6 text-center"
+          >
+            {/* Title */}
+            <div className="space-y-4 mb-20">
+              <div className="flex items-center justify-center gap-2">
+                <User className="w-4 h-4 text-cyan-400" />
+                <span className="text-[9px] tracking-[0.3em] text-cyan-400 uppercase font-semibold">Sovereign State</span>
+              </div>
+              <h2 className="text-xl md:text-2xl font-light tracking-[0.2em] uppercase text-white">Decentralized ZK Identity</h2>
+              <p className="text-[10px] text-white/40 font-light max-w-xs mx-auto leading-relaxed tracking-wider">
+                Verifiable cryptographic credentials packaged into a single decentralized sovereign passport.
+              </p>
+            </div>
+
+            {/* The Centered Element with Generous Empty Space around it */}
+            <div className="flex justify-center items-center py-12 md:py-20">
+              <div className="w-full max-w-sm border border-white/15 rounded-2xl p-8 space-y-8 relative overflow-hidden bg-gradient-to-b from-neutral-950 to-black text-left shadow-2xl hover:border-white/30 transition-all duration-500 group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-400/5 rounded-full filter blur-xl pointer-events-none group-hover:bg-cyan-400/10 transition-all duration-500" />
+                
+                <div className="flex justify-between items-start">
+                  <div className="space-y-2">
+                    <span className="text-[7px] font-mono tracking-[0.2em] text-cyan-400 border border-cyan-400/20 px-2.5 py-0.5 rounded-full uppercase font-bold">
+                      OBEL-PASSPORT
+                    </span>
+                    <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-white">Sovereign Profile</h3>
+                  </div>
+                  {/* Symmetrical simple chip */}
+                  <div className="w-7 h-5 border border-white/20 rounded opacity-60 bg-white/5 flex items-center justify-center">
+                    <span className="text-[5px] font-mono text-white/40">ZK</span>
+                  </div>
+                </div>
+
+                {/* Passport parameters */}
+                <div className="space-y-5 pt-6 border-t border-white/5">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <span className="text-[7px] uppercase tracking-[0.15em] text-white/30 block">ID Address</span>
+                      <span className="text-[9px] font-mono text-white/80 block mt-1 break-all">{walletConnected ? walletAddress : "UNCONNECTED"}</span>
+                    </div>
+                    <div>
+                      <span className="text-[7px] uppercase tracking-[0.15em] text-white/30 block">Status Level</span>
+                      <span className="text-[9px] font-mono text-cyan-400 block mt-1">{walletConnected ? "VERIFIED NODE" : "UNREGISTERED"}</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <span className="text-[7px] uppercase tracking-[0.15em] text-white/30 block">Authority Hash</span>
+                      <span className="text-[9px] font-mono text-white/50 block mt-1">0x2d8e...9a4f</span>
+                    </div>
+                    <div>
+                      <span className="text-[7px] uppercase tracking-[0.15em] text-white/30 block">ZK Passport ID</span>
+                      <span className="text-[9px] font-mono text-white/50 block mt-1">#4120-OBEL</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Verification Signature */}
+                <div className="border-t border-white/5 pt-6 flex justify-between items-center text-[7px] font-mono text-white/40 uppercase tracking-widest">
+                  <span>Issued in Epoch III</span>
+                  <span className="text-green-400/90 font-semibold tracking-wider animate-pulse">SHA-256 Valid</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Extra subtle centered confirmation text */}
+            <div className="mt-8 text-[8px] font-mono text-white/25 uppercase tracking-[0.25em]">
+              {walletConnected ? "Decentralized claims fully verified on-chain" : "Please connect key credentials for full verification"}
+            </div>
+          </motion.main>
+        </section>
+
+      </div>
+
+      {/* Footer info bar */}
+      <footer className="relative z-20 w-full max-w-7xl mx-auto px-6 py-4 border-t border-white/5 bg-black flex flex-col sm:flex-row justify-between items-center gap-3 text-[8px] tracking-widest text-white/40 uppercase">
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8 }}
+        >
+          © {new Date().getFullYear()} Obelisk. All rights reserved.
+        </motion.p>
+        
+        {/* Quick Nav in footer */}
+        <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 font-mono text-white/20">
+          <button onClick={() => scrollToSection("home")} className="hover:text-white transition-colors">HOME</button>
+          <span>/</span>
+          <button onClick={() => scrollToSection("vault")} className="hover:text-white transition-colors">VAULT</button>
+          <span>/</span>
+          <button onClick={() => scrollToSection("staking")} className="hover:text-white transition-colors">STAKE</button>
+          <span>/</span>
+          <button onClick={() => scrollToSection("identity")} className="hover:text-white transition-colors">IDENTITY</button>
+        </div>
+
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+        >
+          Pure Sovereignty
+        </motion.p>
+      </footer>
+
+      {/* Interactive Modal System for Connect Wallet */}
+      <AnimatePresence>
+        {activeModal === "connect" && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/95 z-50 backdrop-blur-md flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="bg-black border border-white/20 rounded-xl w-full max-w-xs p-5 relative"
+            >
+              <button 
+                id="close-modal-btn"
+                onClick={() => setActiveModal(null)}
+                className="absolute top-4 right-4 text-white/60 hover:text-white border border-white/10 p-1 rounded-full hover:bg-white/5 transition-all cursor-pointer"
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+
+              <div>
+                <h2 className="text-xs font-bold tracking-widest uppercase mb-0.5">
+                  Connect Wallet
+                </h2>
+                <p className="text-[8px] text-white/50 uppercase tracking-widest mb-4">
+                  Select key credentials provider.
+                </p>
+
+                <div className="space-y-2">
+                  <button 
+                    onClick={() => connectWallet("metamask")}
+                    className="w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 text-white font-semibold py-2.5 rounded-lg transition-all flex items-center justify-between px-3 text-[9px] cursor-pointer"
+                  >
+                    <span className="uppercase tracking-wider">Metamask</span>
+                    <span className="text-[7px] text-cyan-400 font-mono font-bold">RECOMMENDED</span>
+                  </button>
+
+                  <button 
+                    onClick={() => connectWallet("walletconnect")}
+                    className="w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 text-white font-semibold py-2.5 rounded-lg transition-all flex items-center justify-between px-3 text-[9px] cursor-pointer"
+                  >
+                    <span className="uppercase tracking-wider">WalletConnect</span>
+                    <span className="text-[7px] text-white/30 font-mono">STANDALONE</span>
+                  </button>
+
+                  <button 
+                    onClick={() => connectWallet("coinbase")}
+                    className="w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 text-white font-semibold py-2.5 rounded-lg transition-all flex items-center justify-between px-3 text-[9px] cursor-pointer"
+                  >
+                    <span className="uppercase tracking-wider">Coinbase</span>
+                    <span className="text-[7px] text-white/30 font-mono">SECURE</span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+
+        const root = window.ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+
+    <script>
+      try {
+        const code = document.getElementById('my-tsx').textContent;
+        const result = Babel.transform(code, {
+          filename: 'App.tsx',
+          presets: [
+            ['env', { modules: 'commonjs' }], 
+            ['react', { runtime: 'classic' }], 
+            ['typescript', { ignoreExtensions: true }]
+          ]
+        });
+        
+        const script = document.createElement('script');
+        script.innerHTML = result.code;
+        document.body.appendChild(script);
+      } catch (e) {
+        document.getElementById('error-log').style.display = 'block';
+        document.getElementById('error-log').innerText += e.stack + '\n';
+      }
+    </script>
+</body>
+</html>
